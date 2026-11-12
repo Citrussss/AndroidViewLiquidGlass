@@ -1,0 +1,9 @@
+Android View Liquid Glass
+
+Contains algorithms and demo resources derived from AndroidLiquidGlass / Backdrop.
+Copyright 2025 Kyant
+Licensed under the Apache License, Version 2.0; see LICENSE.
+
+Derived shader algorithms: rounded rectangle SDF, refraction, chromatic dispersion,
+directional highlight, SDF texture refraction and alpha-masked progressive blur.
+Derived demo resources: wallpaper_light.webp, clock_sdf.webp.

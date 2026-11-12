@@ -1,0 +1,10 @@
+<resources>
+    <declare-styleable name="GlassView">
+        <attr name="glassRadius" format="dimension"/>
+        <attr name="glassBlur" format="dimension"/>
+        <attr name="glassRefractionHeight" format="dimension"/>
+        <attr name="glassRefractionAmount" format="dimension"/>
+        <attr name="glassTint" format="color"/>
+        <attr name="glassChromaticAberration" format="boolean"/>
+    </declare-styleable>
+</resources>

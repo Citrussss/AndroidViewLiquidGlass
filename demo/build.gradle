@@ -1,0 +1,8 @@
+apply plugin: 'com.android.application'
+android {
+    namespace 'com.kyant.backdrop.view.demo'
+    compileSdk 34
+    defaultConfig { applicationId 'com.kyant.backdrop.view.demo'; minSdk 23; targetSdk 34; versionCode 1; versionName '1.0'; testInstrumentationRunner 'com.kyant.backdrop.view.demo.CatalogInstrumentation' }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies { implementation project(':glass') }
