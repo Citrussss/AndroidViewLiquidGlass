@@ -155,7 +155,7 @@ dependencyResolutionManagement {
 添加依赖（Android 13+ 支持完整折射，最低 Android 6）：
 
 ```kotlin
-implementation("com.github.Citrussss:AndroidViewLiquidGlass:1.1.0")
+implementation("com.github.Citrussss:AndroidViewLiquidGlass:1.1.1")
 ```
 
-JitPack 首次构建需要等待；可在 https://jitpack.io/#Citrussss/AndroidViewLiquidGlass/1.1.0 查看构建状态。
+JitPack 首次构建需要等待；可在 https://jitpack.io/#Citrussss/AndroidViewLiquidGlass/1.1.1 查看构建状态。
