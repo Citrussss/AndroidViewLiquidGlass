@@ -149,13 +149,17 @@ public class GlassView extends FrameLayout {
         layer.getLocationInWindow(b);
         c.translate(b[0] - a[0], b[1] - a[1]);
       }
-      if (Build.VERSION.SDK_INT >= 29
-          && c.isHardwareAccelerated()
-          && layer.exportedSurface.hasDisplayList()) c.drawRenderNode(layer.exportedSurface);
-      else if (!c.isHardwareAccelerated()) layer.drawGlass(c);
-      layer.drawBackdropContent(c);
+      layer.drawExportedBackdrop(c);
       c.restore();
     }
+  }
+
+  /** Draws this layer's independently recorded backdrop for another glass surface. */
+  protected void drawExportedBackdrop(Canvas canvas) {
+    if (Build.VERSION.SDK_INT >= 29 && canvas.isHardwareAccelerated() && exportedSurface.hasDisplayList())
+      canvas.drawRenderNode(exportedSurface);
+    else drawGlass(canvas);
+    drawBackdropContent(canvas);
   }
 
   /** Extra non-glass content exported only to dependent surfaces; must not draw those surfaces. */

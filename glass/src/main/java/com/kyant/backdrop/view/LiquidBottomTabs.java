@@ -8,6 +8,8 @@ import android.widget.TextView;
 public class LiquidBottomTabs extends GlassView {
   private final LinearLayout row;
   private final GlassView selector;
+  private final GlassView sampledTrack;
+  private float panelScale = 1;
   private int selected;
   private int contentColor = android.graphics.Color.BLACK;
 
@@ -38,6 +40,25 @@ public class LiquidBottomTabs extends GlassView {
     LayoutParams rowBounds = new LayoutParams(-1, -1);
     rowBounds.setMargins((int) dp(4), (int) dp(4), (int) dp(4), (int) dp(4));
     addView(row, rowBounds);
+    sampledTrack = new GlassView(c) {
+      @Override protected void onDraw(android.graphics.Canvas canvas) {
+        super.onDraw(canvas);
+        drawAccentContent(canvas);
+      }
+    };
+    sampledTrack.style.radius = 100;
+    sampledTrack.style.blur = 8;
+    sampledTrack.style.saturation = 1.5f;
+    sampledTrack.style.tint = style.tint;
+    sampledTrack.style.depthEffect = false;
+    sampledTrack.style.chromaticAberration = false;
+    sampledTrack.style.shadow = 0;
+    sampledTrack.style.refractionHeight = 0;
+    sampledTrack.style.refractionAmount = 0;
+    sampledTrack.style.highlight = 0;
+    sampledTrack.setVisibility(INVISIBLE);
+    sampledTrack.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+    addView(sampledTrack, new LayoutParams(-1, (int) dp(56), Gravity.CENTER_VERTICAL));
     bringChildToFront(selector);
     setClipToOutline(false);
     setClipChildren(false);
@@ -70,7 +91,8 @@ public class LiquidBottomTabs extends GlassView {
       TextView label = (TextView) row.getChildAt(i);
       android.graphics.drawable.Drawable icon = getContext().getDrawable(drawable).mutate();
       icon.setTint(color);
-      icon.setBounds(0, 0, (int) dp(28), (int) dp(28));
+      icon.setBounds(0, 0, (int) dp(24), (int) dp(24));
+      label.setCompoundDrawablePadding((int) dp(6));
       label.setCompoundDrawables(null, icon, null, null);
       label.setTextSize(12);
       label.setTextColor(color);
@@ -118,12 +140,26 @@ public class LiquidBottomTabs extends GlassView {
   }
 
   @Override
-  protected void drawBackdropContent(android.graphics.Canvas canvas) {
+  protected void drawExportedBackdrop(android.graphics.Canvas canvas) {
+    int save = canvas.save();
+    canvas.translate(sampledTrack.getLeft(), sampledTrack.getTop());
+    sampledTrack.draw(canvas);
+    canvas.restoreToCount(save);
+  }
+
+  @Override protected void onDraw(android.graphics.Canvas canvas) {
+    int save = canvas.save();
+    canvas.scale(panelScale, panelScale, getWidth() / 2f, getHeight() / 2f);
+    super.onDraw(canvas);
+    canvas.restoreToCount(save);
+  }
+
+  private void drawAccentContent(android.graphics.Canvas canvas) {
     // The source catalog exports a second, accent-colored content row for the lens.
     android.graphics.Paint tint = new android.graphics.Paint();
     tint.setColorFilter(new android.graphics.PorterDuffColorFilter(0xff0088ff, android.graphics.PorterDuff.Mode.SRC_IN));
     int save = canvas.saveLayer(0, 0, getWidth(), getHeight(), tint);
-    canvas.translate(row.getLeft(), row.getTop());
+    canvas.translate(row.getLeft(), 0);
     for (int i = 0; i < row.getChildCount(); i++) {
       android.view.View item = row.getChildAt(i);
       int itemSave = canvas.save();
@@ -145,6 +181,13 @@ public class LiquidBottomTabs extends GlassView {
     pressAnimator.setInterpolator(new SpringInterpolator(1, 1000, .5f));
     pressAnimator.addUpdateListener(animation -> {
       pressProgress = (float) animation.getAnimatedValue();
+      sampledTrack.style.refractionHeight = 24 * pressProgress;
+      sampledTrack.style.refractionAmount = 24 * pressProgress;
+      sampledTrack.style.highlight = .5f * pressProgress;
+      sampledTrack.invalidate();
+      panelScale = 1 + dp(16) / Math.max(1, getWidth()) * pressProgress;
+      row.setScaleX(panelScale); row.setScaleY(panelScale);
+      invalidate();
       selector.style.refractionHeight = 10 * pressProgress;
       selector.style.refractionAmount = 14 * pressProgress;
       selector.style.highlight = .5f * pressProgress;
@@ -159,9 +202,7 @@ public class LiquidBottomTabs extends GlassView {
     float scale = pressed ? 78f / 56f : 1;
     selector.animate().scaleX(scale).scaleY(scale).setDuration(700)
         .setInterpolator(new SpringInterpolator(.65f, 250, .7f)).start();
-    float panelScale = pressed ? 1 + dp(16) / Math.max(1, getWidth()) : 1;
-    animate().scaleX(panelScale).scaleY(panelScale).setDuration(500)
-        .setInterpolator(new SpringInterpolator(1, 1000, .5f)).start();
+
   }
 
   @Override protected void onDetachedFromWindow() {
