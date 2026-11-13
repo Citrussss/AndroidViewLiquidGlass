@@ -1,5 +1,7 @@
 # Android View Liquid Glass
 
+[![](https://jitpack.io/v/Citrussss/AndroidViewLiquidGlass.svg)](https://jitpack.io/#Citrussss/AndroidViewLiquidGlass)
+
 AndroidLiquidGlass / Backdrop 的 Android View 实现。Java 17，`Canvas`、`RenderNode`、`RenderEffect` 与 `RuntimeShader`；不依赖 Compose、Kotlin、AndroidX UI 或第三方渲染库。
 
 ## 演示效果
