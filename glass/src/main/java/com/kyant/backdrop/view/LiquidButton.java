@@ -31,22 +31,34 @@ public class LiquidButton extends GlassView {
     setContentDescription(text);
   }
 
+  public void setTextSize(float sp) { label.setTextSize(sp); }
+
   public void setTextColor(int color) {
     if (label.getCurrentTextColor() != color) label.setTextColor(color);
   }
 
+  private float pressX, pressY;
+
   @Override
   public boolean onTouchEvent(MotionEvent e) {
-    if (e.getActionMasked() == MotionEvent.ACTION_DOWN)
-      animate().scaleX(.94f).scaleY(.94f).setDuration(100).start();
-    if (e.getActionMasked() == MotionEvent.ACTION_UP
-        || e.getActionMasked() == MotionEvent.ACTION_CANCEL)
-      animate()
-          .scaleX(1)
-          .scaleY(1)
-          .setDuration(250)
-          .setInterpolator(new android.view.animation.OvershootInterpolator())
-          .start();
+    if (!isEnabled()) return false;
+    float height = Math.max(1, getHeight());
+    float expanded = 1 + dp(4) / height;
+    if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+      pressX = e.getRawX(); pressY = e.getRawY();
+      getParent().requestDisallowInterceptTouchEvent(true);
+      animate().scaleX(expanded).scaleY(expanded).setDuration(150).start();
+    } else if (e.getActionMasked() == MotionEvent.ACTION_MOVE) {
+      float dx = e.getRawX() - pressX, dy = e.getRawY() - pressY;
+      float maxOffset = Math.max(1, Math.min(getWidth(), getHeight()));
+      setTranslationX(maxOffset * (float) Math.tanh(.05f * dx / maxOffset));
+      setTranslationY(maxOffset * (float) Math.tanh(.05f * dy / maxOffset));
+    }
+    if (e.getActionMasked() == MotionEvent.ACTION_UP || e.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+      getParent().requestDisallowInterceptTouchEvent(false);
+      animate().scaleX(1).scaleY(1).translationX(0).translationY(0).setDuration(300)
+          .setInterpolator(new android.view.animation.OvershootInterpolator(.5f)).start();
+    }
     return super.onTouchEvent(e);
   }
 

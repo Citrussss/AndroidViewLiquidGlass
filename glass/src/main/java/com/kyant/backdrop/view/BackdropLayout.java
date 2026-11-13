@@ -26,6 +26,12 @@ public class BackdropLayout extends FrameLayout {
     super(c, a);
     content = new FrameLayout(c);
     foreground = new FrameLayout(c);
+    // Foreground glass can cast shadows beyond a child or padding boundary.
+    // Keep background recording and the glass surface's own shape clip unchanged.
+    setClipChildren(false);
+    setClipToPadding(false);
+    foreground.setClipChildren(false);
+    foreground.setClipToPadding(false);
     addView(content, new LayoutParams(-1, -1));
     addView(foreground, new LayoutParams(-1, -1));
     if (Build.VERSION.SDK_INT >= 29) recording = new RenderNode("Backdrop source");
@@ -88,6 +94,11 @@ public class BackdropLayout extends FrameLayout {
     target.getLocationInWindow(b);
     canvas.save();
     canvas.scale(zoom, zoom, target.getWidth() / 2f, target.getHeight() / 2f);
+    if (target instanceof GlassView) {
+      GlassStyle style = ((GlassView) target).style;
+      float density = getResources().getDisplayMetrics().density;
+      canvas.translate(-style.sampleOffsetX * density, -style.sampleOffsetY * density);
+    }
     if (Build.VERSION.SDK_INT >= 29) {
       android.graphics.Matrix targetGlobal = new android.graphics.Matrix(),
           sourceGlobal = new android.graphics.Matrix(),

@@ -127,3 +127,25 @@ adb shell am instrument -w com.kyant.backdrop.view.demo.test/com.kyant.backdrop.
 ## 来源与许可
 
 折射、色散、圆角 SDF、高光和纹理 SDF 算法移植自 Kyant 的 AndroidLiquidGlass / Backdrop；保留 Apache-2.0 许可，见 `LICENSE` 和 `NOTICE`。壁纸、时钟 SDF 纹理来自源项目。该工程的 View 容器、原生组件和目录应用为独立实现。
+
+## Maven / JitPack
+
+在项目的 `settings.gradle.kts` 中添加仓库：
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+添加依赖（Android 13+ 支持完整折射，最低 Android 6）：
+
+```kotlin
+implementation("com.github.Citrussss:AndroidViewLiquidGlass:1.1.0")
+```
+
+JitPack 首次构建需要等待；可在 https://jitpack.io/#Citrussss/AndroidViewLiquidGlass/1.1.0 查看构建状态。

@@ -76,11 +76,11 @@ public class CatalogInstrumentation extends Instrumentation {
     Bitmap before = getUiAutomation().takeScreenshot();
     runOnMainSync(
         () -> {
-          View child = source[0].content().getChildAt(0);
+          View child = source[0].foreground().getChildAt(0);
           if (child instanceof android.widget.ScrollView)
             ((android.widget.ScrollView) child).scrollTo(0, 600);
           if (child instanceof android.widget.ListView)
-            ((android.widget.ListView) child).setSelection(23);
+            ((android.widget.ListView) child).setSelectionFromTop(5, -90);
         });
     waitForIdleSync();
     SystemClock.sleep(250);
@@ -97,7 +97,7 @@ public class CatalogInstrumentation extends Instrumentation {
       }
     before.recycle();
     after.recycle();
-    if (!changed) throw new AssertionError("Scrolling source did not update the glass backdrop");
+    if (!changed) throw new AssertionError("Scrolling glass cards did not update the rendered frame");
   }
 
   private boolean clickNamed(View v, String name) {

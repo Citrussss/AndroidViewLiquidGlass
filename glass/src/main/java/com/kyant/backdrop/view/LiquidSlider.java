@@ -21,14 +21,23 @@ public class LiquidSlider extends GlassView {
     setFocusable(true);
     setClickable(true);
     style.radius = 100;
+    style.shadow = 0;
+    style.highlight = 0;
+    setClipChildren(false);
+    setClipToPadding(false);
     setContentDescription("Value");
     thumb = new GlassView(c);
     thumb.style.radius = 100;
-    thumb.style.blur = 0;
-    thumb.style.refractionHeight = 8;
-    thumb.style.refractionAmount = 12;
-    thumb.style.tint = 0xaaffffff;
-    thumb.style.shadow = 2;
+    thumb.style.blur = 8;
+    thumb.style.refractionHeight = 0;
+    thumb.style.refractionAmount = 0;
+    thumb.style.tint = Color.WHITE;
+    thumb.style.highlight = 0;
+    thumb.style.shadow = 4;
+    if (android.os.Build.VERSION.SDK_INT >= 28) {
+      thumb.setOutlineAmbientShadowColor(0x0d000000);
+      thumb.setOutlineSpotShadowColor(0x0d000000);
+    }
     thumb.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     thumb.setBackdropLayers(this);
     addView(thumb);
@@ -53,49 +62,72 @@ public class LiquidSlider extends GlassView {
 
   @Override
   protected void onDraw(Canvas c) {
-    super.onDraw(c);
-    float h = getHeight(),
-        x =
-            h / 2
-                + (getWidth() - h)
-                    * (getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 - value : value);
-    p.setColor(0x66ffffff);
-    c.drawRoundRect(dp(8), h / 2 - dp(3), x, h / 2 + dp(3), dp(3), dp(3), p);
+    float center = getHeight() / 2f;
+    boolean dark = (getResources().getConfiguration().uiMode & 48) == 32;
+    p.setColor(dark ? 0x5c787880 : 0x33787878);
+    c.drawRoundRect(0, center - dp(3), getWidth(), center + dp(3), dp(3), dp(3), p);
+    p.setColor(dark ? 0xff0091ff : 0xff0088ff);
+    float x = getWidth() * value;
+    if (getLayoutDirection() == LAYOUT_DIRECTION_RTL)
+      c.drawRoundRect(getWidth() - x, center - dp(3), getWidth(), center + dp(3), dp(3), dp(3), p);
+    else c.drawRoundRect(0, center - dp(3), x, center + dp(3), dp(3), dp(3), p);
   }
 
   private void positionThumb() {
-    thumb.setTranslationX(
-        (getWidth() - getHeight())
-            * (getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 - value : value));
+    float progress = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 - value : value;
+    thumb.setTranslationX(Math.max(-dp(10), Math.min(getWidth() - dp(30), getWidth() * progress - dp(20))));
     thumb.invalidate();
   }
 
   @Override
   protected void onMeasure(int w, int h) {
     super.onMeasure(w, h);
-    int size = Math.max(0, getMeasuredHeight() - (int) dp(8));
+    int size = (int) dp(40);
     thumb.measure(
         MeasureSpec.makeMeasureSpec(size, MeasureSpec.EXACTLY),
-        MeasureSpec.makeMeasureSpec(size, MeasureSpec.EXACTLY));
+        MeasureSpec.makeMeasureSpec((int) dp(24), MeasureSpec.EXACTLY));
   }
 
   @Override
   protected void onLayout(boolean changed, int l, int t, int r, int b) {
     super.onLayout(changed, l, t, r, b);
-    int inset = (int) dp(4);
-    thumb.layout(inset, inset, inset + thumb.getMeasuredWidth(), inset + thumb.getMeasuredHeight());
+    int inset = 0;
+    thumb.layout(0, (getHeight() - thumb.getMeasuredHeight()) / 2, thumb.getMeasuredWidth(), (getHeight() + thumb.getMeasuredHeight()) / 2);
     positionThumb();
+  }
+
+  private android.animation.ValueAnimator pressAnimation;
+  private float pressProgress;
+  private void pressThumb(boolean pressed) {
+    if (pressAnimation != null) pressAnimation.cancel();
+    pressAnimation = android.animation.ValueAnimator.ofFloat(pressProgress, pressed ? 1 : 0);
+    pressAnimation.setDuration(500);
+    pressAnimation.setInterpolator(new SpringInterpolator(1, 1000, .5f));
+    pressAnimation.addUpdateListener(animation -> {
+      pressProgress = (float) animation.getAnimatedValue();
+      thumb.style.blur = 8 * (1 - pressProgress);
+      thumb.style.refractionHeight = 10 * pressProgress;
+      thumb.style.refractionAmount = 14 * pressProgress;
+      thumb.style.highlight = pressProgress;
+      thumb.style.tint = Color.argb(Math.round(255 * (1 - pressProgress)), 255, 255, 255);
+      thumb.invalidate();
+    });
+    pressAnimation.start();
+    thumb.animate().scaleX(pressed ? 1.5f : 1).scaleY(pressed ? 1.5f : 1).setDuration(700)
+        .setInterpolator(new SpringInterpolator(.65f, 250, .7f)).start();
   }
 
   @Override
   public boolean onTouchEvent(MotionEvent e) {
+    if (e.getActionMasked() == MotionEvent.ACTION_DOWN) pressThumb(true);
+    if (e.getActionMasked() == MotionEvent.ACTION_UP || e.getActionMasked() == MotionEvent.ACTION_CANCEL) pressThumb(false);
     if (!isEnabled()) return false;
     if (e.getActionMasked() == MotionEvent.ACTION_DOWN)
       getParent().requestDisallowInterceptTouchEvent(true);
     if (e.getActionMasked() == MotionEvent.ACTION_DOWN
         || e.getActionMasked() == MotionEvent.ACTION_MOVE
         || e.getActionMasked() == MotionEvent.ACTION_UP) {
-      float v = (e.getX() - getHeight() / 2f) / Math.max(1, getWidth() - getHeight());
+      float v = e.getX() / Math.max(1, getWidth());
       setValue(getLayoutDirection() == LAYOUT_DIRECTION_RTL ? 1 - v : v);
     }
     if (e.getActionMasked() == MotionEvent.ACTION_UP) {
@@ -105,6 +137,12 @@ public class LiquidSlider extends GlassView {
     if (e.getActionMasked() == MotionEvent.ACTION_CANCEL)
       getParent().requestDisallowInterceptTouchEvent(false);
     return true;
+  }
+
+  @Override
+  protected void onDetachedFromWindow() {
+    if (pressAnimation != null) pressAnimation.cancel();
+    super.onDetachedFromWindow();
   }
 
   @Override

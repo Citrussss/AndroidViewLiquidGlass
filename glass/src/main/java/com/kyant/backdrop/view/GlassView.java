@@ -19,6 +19,7 @@ public class GlassView extends FrameLayout {
   private final Path clip = new Path();
   private final RectF rect = new RectF();
   private RenderNode node;
+  private RenderNode edgeNode;
   private RenderNode exportedSurface;
   private GlassView[] backdropLayers = new GlassView[0];
   private RuntimeShader lens;
@@ -242,6 +243,7 @@ public class GlassView extends FrameLayout {
       blur = l > 0 ? 8 + 8 * l : 8 + 6 * l;
       if (this instanceof LiquidButton)
         ((LiquidButton) this).setTextColor(luminance > .5f ? Color.BLACK : Color.WHITE);
+
     }
     if (source != null && Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated()) {
       int padding = (int) Math.ceil(dp(blur * 3 + style.refractionAmount + style.progressiveBlur));
@@ -330,6 +332,12 @@ public class GlassView extends FrameLayout {
       canvas.drawRenderNode(node);
     } else if (source != null) drawSource(canvas, source);
     paint.setShader(null);
+    if (style.hueTint && Build.VERSION.SDK_INT >= 29) {
+      paint.setColor(style.tint | 0xff000000);
+      paint.setBlendMode(android.graphics.BlendMode.HUE);
+      canvas.drawRect(rect, paint);
+      paint.setBlendMode(android.graphics.BlendMode.SRC_OVER);
+    }
     paint.setColor(style.tint);
     canvas.drawRect(rect, paint);
     if (style.innerShadow > 0) {
@@ -346,8 +354,9 @@ public class GlassView extends FrameLayout {
       paint.setShader(null);
     }
     canvas.restoreToCount(save);
+    paint.setColor(Color.WHITE);
     paint.setStyle(Paint.Style.STROKE);
-    paint.setStrokeWidth(dp(style.highlightWidth));
+    paint.setStrokeWidth((float) Math.ceil(dp(style.highlightWidth)) * 2);
     paint.setShader(
         new LinearGradient(
             0,
@@ -365,15 +374,32 @@ public class GlassView extends FrameLayout {
       highlightShader.setFloatUniform("cornerRadii", corners);
       highlightShader.setColorUniform(
           "color",
-          Color.argb((int) (255 * Math.max(0, Math.min(1, style.highlight))), 255, 255, 255));
+          Color.WHITE);
       highlightShader.setFloatUniform("angle", (float) Math.toRadians(style.highlightAngle));
       highlightShader.setFloatUniform("falloff", style.highlightFalloff);
       paint.setShader(highlightShader);
+      paint.setAlpha((int) (255 * Math.max(0, Math.min(1, style.highlight))));
+    }
+    if (style.plainHighlight) {
+      paint.setShader(null);
+      paint.setColor(Color.argb((int) (255 * style.highlight), 255, 255, 255));
     }
     if (style.highlight > 0 && style.highlightWidth > 0) {
       int edgeSave = canvas.save();
       canvas.clipPath(clip);
-      canvas.drawPath(clip, paint);
+      if (Build.VERSION.SDK_INT >= 31 && canvas.isHardwareAccelerated()) {
+        if (edgeNode == null) edgeNode = new RenderNode("Glass edge highlight");
+        edgeNode.setPosition(0, 0, getWidth(), getHeight());
+        Canvas edge = edgeNode.beginRecording();
+        edge.drawPath(clip, paint);
+        edgeNode.endRecording();
+        float blurRadius = Math.max(.01f, dp(style.highlightWidth) / 2);
+        edgeNode.setRenderEffect(RenderEffect.createBlurEffect(blurRadius, blurRadius, Shader.TileMode.DECAL));
+        Paint blend = new Paint();
+        blend.setBlendMode(BlendMode.PLUS);
+        edgeNode.setUseCompositingLayer(true, blend);
+        canvas.drawRenderNode(edgeNode);
+      } else canvas.drawPath(clip, paint);
       canvas.restoreToCount(edgeSave);
     }
     paint.setShader(null);

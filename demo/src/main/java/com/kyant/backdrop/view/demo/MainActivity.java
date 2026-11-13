@@ -26,6 +26,7 @@ public class MainActivity extends Activity {
   };
   private BackdropLayout root;
   private LinearLayout column;
+  private static final String LOREM = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
   private int page = -1;
   private int nextViewId;
   private String wallpaperUri;
@@ -37,6 +38,13 @@ public class MainActivity extends Activity {
   @Override
   public void onCreate(Bundle b) {
     super.onCreate(b);
+    getWindow().setStatusBarColor(Color.TRANSPARENT);
+    getWindow().setNavigationBarColor(Color.TRANSPARENT);
+    if (android.os.Build.VERSION.SDK_INT >= 29) getWindow().setNavigationBarContrastEnforced(false);
+    getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
+
     if (b != null) wallpaperUri = b.getString("wallpaper");
     int initial = b == null ? getIntent().getIntExtra("page", -1) : b.getInt("page", -1);
     show(initial >= -1 && initial < pages.length ? initial : -1);
@@ -90,26 +98,48 @@ public class MainActivity extends Activity {
     ScrollView scroll = new ScrollView(this);
     scroll.setFillViewport(true);
     scroll.setClipToPadding(false);
+    scroll.setClipChildren(false);
     column = new LinearLayout(this);
     column.setOrientation(LinearLayout.VERTICAL);
-    column.setPadding(dp(24), dp(16), dp(24), dp(40));
+    column.setClipChildren(false);
+    column.setClipToPadding(false);
+    column.setPadding(0, 0, 0, 0);
+    column.setGravity(Gravity.CENTER);
     scroll.addView(column);
     root.foreground().addView(scroll);
     setContentView(root);
-    if (index >= 0) add(button("‹  Catalog", () -> show(-1)), 48);
-    column.addView(text(index < 0 ? "Liquid Glass" : pages[index], 34));
-    column.addView(
-        text(
-            "ANDROID VIEWS  /  "
-                + (android.os.Build.VERSION.SDK_INT >= 33
-                    ? "LIVE REFRACTION"
-                    : "COMPATIBILITY MODE"),
-            12));
     if (index < 0) {
-      title("A native View implementation of the Backdrop catalog");
+      root.content().removeAllViews();
+      boolean dark = (getResources().getConfiguration().uiMode & 48) == 32;
+      int ink = dark ? Color.WHITE : Color.BLACK;
+      root.setBackgroundColor(dark ? 0xff121212 : Color.WHITE);
+      scroll.setOnApplyWindowInsetsListener((view, insets) -> {
+        view.setPadding(0, insets.getSystemWindowInsetTop(), 0, insets.getSystemWindowInsetBottom());
+        return insets;
+      });
+      column.setGravity(Gravity.TOP);
+      TextView heading = text("Backdrop Catalog", 28);
+      heading.setTextColor(ink);
+      heading.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+      heading.setIncludeFontPadding(false);
+      heading.setPadding(dp(16), dp(40), dp(16), dp(32));
+      column.addView(heading, new LinearLayout.LayoutParams(-1, -2));
       for (int i = 0; i < pages.length; i++) {
+        if (i == 0 || i == 5 || i == 8) {
+          TextView section = text(i == 0 ? "Liquid glass components" : i == 5 ? "System UIs" : "Experiments", 15);
+          section.setTextColor(0xff0088ff);
+          section.setIncludeFontPadding(false);
+          section.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+          section.setPadding(dp(16), dp(24), dp(16), dp(8));
+          column.addView(section, new LinearLayout.LayoutParams(-1, -2));
+        }
         final int n = i;
-        add(button(pages[i] + "  ›", () -> show(n)), 58);
+        TextView row = text(pages[i], 17);
+        row.setOnClickListener(v -> show(n));
+        row.setTextColor(ink);
+        row.setIncludeFontPadding(false);
+        row.setPadding(dp(16), dp(16), dp(16), dp(16));
+        column.addView(row, new LinearLayout.LayoutParams(-1, -2));
       }
       return;
     }
@@ -154,17 +184,28 @@ public class MainActivity extends Activity {
         scrolling(true);
         break;
     }
-    if (index != 11 && index != 12)
-      add(
-          button(
+    LiquidButton picker = button(
               "Pick an image",
               () ->
                   startActivityForResult(
                       new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT)
                           .setType("image/*")
                           .addCategory(android.content.Intent.CATEGORY_OPENABLE),
-                      10)),
-          52);
+                      10));
+    picker.style.tint = 0xbf0088ff;
+    picker.style.hueTint = true;
+    picker.style.shadow = 0;
+    picker.style.blur = 2;
+    picker.style.saturation = 1.5f;
+    FrameLayout.LayoutParams pick = new FrameLayout.LayoutParams(dp(148), dp(56), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+    pick.bottomMargin = dp(16);
+    picker.setOnApplyWindowInsetsListener((view, insets) -> {
+      FrameLayout.LayoutParams bounds = (FrameLayout.LayoutParams) view.getLayoutParams();
+      bounds.bottomMargin = dp(16) + insets.getSystemWindowInsetBottom();
+      view.setLayoutParams(bounds);
+      return insets;
+    });
+    root.foreground().addView(picker, pick);
   }
 
   private void setWallpaper() {
@@ -205,83 +246,136 @@ public class MainActivity extends Activity {
   }
 
   private void buttons() {
-    title("Press to see the spring response");
-    for (String s :
-        new String[] {"Clear glass", "Frosted glass", "Tinted glass", "Chromatic lens"}) {
-      LiquidButton b = button(s, () -> Toast.makeText(this, s, Toast.LENGTH_SHORT).show());
-      if (s.startsWith("Frosted")) b.style.blur = 24;
-      if (s.startsWith("Tinted")) b.style.tint = 0x666f52e8;
-      if (s.startsWith("Clear")) b.style.blur = 0;
-      add(b, 64);
+    String[] labels = {"Transparent Liquid Button", "Surface Liquid Button", "Tinted Liquid Button", "Tinted Liquid Button"};
+    int[] tints = {0, 0x4dffffff, 0xbf0088ff, 0xbfff8d28};
+    for (int i = 0; i < labels.length; i++) {
+      LiquidButton b = button(labels[i], () -> {});
+      b.style.blur = 2;
+      b.style.saturation = 1.5f;
+      b.style.refractionHeight = 12;
+      b.style.refractionAmount = 24;
+      b.style.tint = tints[i];
+      b.style.hueTint = i >= 2;
+      b.style.shadow = 0;
+      b.setTextColor(i < 2 ? Color.BLACK : Color.WHITE);
+      b.setTextSize(15);
+      Paint measure = new Paint(Paint.ANTI_ALIAS_FLAG);
+      measure.setTextSize(15 * getResources().getDisplayMetrics().scaledDensity);
+      LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams((int) Math.ceil(measure.measureText(labels[i])) + dp(32), dp(48));
+      bounds.topMargin = i == 0 ? 0 : dp(16);
+      column.addView(b, bounds);
     }
   }
 
   private void toggles() {
-    for (String s : new String[] {"Wi-Fi", "Bluetooth", "Airplane mode", "Notifications"}) {
-      title(s);
-      LiquidToggle t = new LiquidToggle(this);
-      t.setContentDescription(s);
-      LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(dp(88), dp(48));
-      p.setMargins(0, dp(10), 0, dp(10));
-      column.addView(t, p);
-      t.setId(nextViewId++);
-    }
+    LiquidToggle first = new LiquidToggle(this);
+    LiquidToggle second = new LiquidToggle(this);
+    LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(dp(64), dp(28));
+    column.addView(first, size);
+    BackdropLayout panel = comparisonPanel();
+    panel.foreground().addView(second, new FrameLayout.LayoutParams(dp(64), dp(28), Gravity.CENTER));
+    LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams(dp(176), dp(76));
+    bounds.topMargin = dp(40);
+    bounds.bottomMargin = dp(24);
+    column.addView(panel, bounds);
+    first.setOnCheckedChangeListener((v, on) -> { if (second.isChecked() != on) second.setChecked(on); });
+    second.setOnCheckedChangeListener((v, on) -> { if (first.isChecked() != on) first.setChecked(on); });
+  }
+
+  private BackdropLayout comparisonPanel() {
+    BackdropLayout panel = new BackdropLayout(this);
+    int color = (getResources().getConfiguration().uiMode & 48) == 32 ? 0xff121212 : Color.WHITE;
+    panel.content().setBackgroundColor(color);
+    android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+    shape.setColor(color);
+    shape.setCornerRadius(dp(32));
+    panel.setBackground(shape);
+    panel.setClipToOutline(true);
+    return panel;
   }
 
   private void sliders() {
-    for (String s : new String[] {"Volume", "Brightness", "Playback"}) {
-      title(s);
-      LiquidSlider slider = new LiquidSlider(this);
-      slider.setContentDescription(s);
-      TextView v = text("50%", 14);
-      slider.setOnValueChangeListener(n -> v.setText(Math.round(n * 100) + "%"));
-      add(slider, 52);
-      column.addView(v);
-    }
+    column.setPadding(dp(24), 0, dp(24), 0);
+    LiquidSlider first = new LiquidSlider(this);
+    LiquidSlider second = new LiquidSlider(this);
+    LinearLayout.LayoutParams firstBounds = new LinearLayout.LayoutParams(-1, dp(24));
+    firstBounds.setMargins(dp(8), 0, dp(8), 0);
+    column.addView(first, firstBounds);
+    BackdropLayout panel = comparisonPanel();
+    FrameLayout.LayoutParams track = new FrameLayout.LayoutParams(-1, dp(28), Gravity.CENTER);
+    track.setMargins(dp(56), 0, dp(56), 0);
+    panel.foreground().addView(second, track);
+    LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams(-1, dp(76));
+    bounds.topMargin = dp(40);
+    bounds.bottomMargin = dp(24);
+    column.addView(panel, bounds);
+    first.setOnValueChangeListener(value -> { if (Math.abs(second.getValue() - value) > .0001f) second.setValue(value); });
+    second.setOnValueChangeListener(value -> { if (Math.abs(first.getValue() - value) > .0001f) first.setValue(value); });
   }
 
   private void tabs() {
-    TextView selected = text("Home selected", 22);
-    column.addView(selected);
-    LiquidBottomTabs tabs = new LiquidBottomTabs(this);
-    tabs.setTabs("Home", "Explore", "Library", "Profile");
-    tabs.setOnTabSelectedListener(
-        i ->
-            selected.setText(
-                new String[] {"Home", "Explore", "Library", "Profile"}[i] + " selected"));
-    add(tabs, 64);
+    for (int count : new int[] {3, 4}) {
+      LiquidBottomTabs tabs = new LiquidBottomTabs(this);
+      String[] labels = new String[count];
+      for (int i = 0; i < count; i++) labels[i] = "Tab " + (i + 1);
+      tabs.setTabs(labels);
+      tabs.setTabIcon(R.drawable.ic_flight, (getResources().getConfiguration().uiMode & 48) == 32 ? Color.WHITE : Color.BLACK);
+      LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams(-1, dp(64));
+      bounds.setMargins(dp(36), count == 3 ? 0 : dp(32), dp(36), 0);
+      column.addView(tabs, bounds);
+    }
   }
 
   private void dialogs() {
-    add(
-        button(
-            "Open glass dialog",
-            () -> {
-              FrameLayout scrim = new FrameLayout(this);
-              scrim.setBackgroundColor(0x55000000);
-              scrim.setClickable(true);
-              GlassView dialog = new GlassView(this);
-              LinearLayout inner = new LinearLayout(this);
-              inner.setOrientation(LinearLayout.VERTICAL);
-              inner.setPadding(dp(24), dp(16), dp(24), dp(16));
-              inner.addView(text("Liquid Glass", 26));
-              inner.addView(
-                  text("A native glass panel sampling the content behind this dialog.", 17));
-              LiquidButton close = button("Done", () -> root.foreground().removeView(scrim));
-              inner.addView(close, new LinearLayout.LayoutParams(-1, dp(52)));
-              dialog.addView(inner);
-              FrameLayout.LayoutParams p =
-                  new FrameLayout.LayoutParams(dp(300), -2, Gravity.CENTER);
-              scrim.addView(dialog, p);
-              scrim.setOnClickListener(v -> root.foreground().removeView(scrim));
-              dialog.setClickable(true);
-              root.foreground().addView(scrim, new FrameLayout.LayoutParams(-1, -1));
-            }),
-        64);
+    boolean dark = (getResources().getConfiguration().uiMode & 48) == 32;
+    View dim = new View(this);
+    dim.setBackgroundColor(dark ? 0x8f121212 : 0x3b29293a);
+    root.content().addView(dim, new FrameLayout.LayoutParams(-1, -1));
+    GlassView dialog = new GlassView(this);
+    dialog.style.radius = 48;
+    dialog.style.plainHighlight = true; dialog.style.highlight = .38f;
+    dialog.style.shadow = 0;
+    dialog.style.blur = dark ? 8 : 16;
+    dialog.style.refractionHeight = 24;
+    dialog.style.refractionAmount = 48;
+    dialog.style.saturation = 1.5f;
+    dialog.style.brightness = dark ? 0 : .2f;
+    dialog.style.tint = dark ? 0x66121212 : 0x99fafafa;
+    LinearLayout inner = new LinearLayout(this);
+    inner.setOrientation(LinearLayout.VERTICAL);
+    inner.setPadding(dp(24), dp(24), dp(24), dp(24));
+    TextView heading = text("Dialog Title", 24);
+    heading.setTextColor(dark ? Color.WHITE : Color.BLACK);
+    inner.addView(heading);
+    TextView body = text(LOREM, 15);
+    body.setMaxLines(5);
+    body.setTextColor(dark ? 0xadffffff : 0xad000000);
+    inner.addView(body);
+    LinearLayout actions = new LinearLayout(this);
+    for (String label : new String[] {"Cancel", "Okay"}) {
+      TextView action = text(label, 16);
+      action.setGravity(Gravity.CENTER);
+      action.setTextColor(label.equals("Okay") || dark ? Color.WHITE : Color.BLACK);
+      android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+      shape.setColor(label.equals("Okay") ? 0xff0088ff : 0x33fafafa);
+      shape.setCornerRadius(dp(24));
+      action.setBackground(shape);
+      action.setOnClickListener(v -> {});
+      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(48), 1);
+      if (label.equals("Okay")) params.leftMargin = dp(16);
+      actions.addView(action, params);
+    }
+    inner.addView(actions);
+    dialog.addView(inner);
+    LinearLayout.LayoutParams dialogBounds = new LinearLayout.LayoutParams(-1, -2);
+    dialogBounds.setMargins(dp(40), 0, dp(40), 0);
+    column.addView(dialog, dialogBounds);
   }
 
   private void lock() {
-    title("Drag the original SDF texture clock");
+    View dim = new View(this);
+    dim.setBackgroundColor(0x4d000000);
+    root.foreground().addView(dim, 0, new FrameLayout.LayoutParams(-1, -1));
     FrameLayout area = new FrameLayout(this);
     GlassView clock = new GlassView(this);
     clock.style.tint = 0;
@@ -300,10 +394,18 @@ public class MainActivity extends Activity {
       fallback.setGravity(Gravity.CENTER);
       clock.addView(fallback);
     }
-    FrameLayout.LayoutParams size = new FrameLayout.LayoutParams(-1, dp(160), Gravity.CENTER);
+    FrameLayout.LayoutParams size = new FrameLayout.LayoutParams(-1, dp(120), Gravity.CENTER);
+    size.setMargins(dp(48), 0, dp(48), 0);
     area.addView(clock, size);
+    area.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+      int width = Math.min(dp(400), right - left - dp(96));
+      int height = Math.round(width * texture.getHeight() / (float) texture.getWidth());
+      FrameLayout.LayoutParams bounds = (FrameLayout.LayoutParams) clock.getLayoutParams();
+      if (bounds.width != width || bounds.height != height) { bounds.width = width; bounds.height = height; clock.setLayoutParams(bounds); }
+    });
     draggable(clock);
     add(area, 360);
+    area.setTranslationY(-getResources().getDisplayMetrics().heightPixels / 4f);
   }
 
   private void draggable(View view) {
@@ -331,91 +433,250 @@ public class MainActivity extends Activity {
   }
 
   private void controls() {
-    title("Connectivity");
-    toggles();
-    title("Media & brightness");
-    sliders();
-    add(
-        button("Focus", () -> Toast.makeText(this, "Focus enabled", Toast.LENGTH_SHORT).show()),
-        64);
+    View dim = new View(this);
+    dim.setBackgroundColor(0x66000000);
+    root.content().addView(dim, new FrameLayout.LayoutParams(-1, -1));
+    if (android.os.Build.VERSION.SDK_INT >= 31) root.content().setRenderEffect(
+        android.graphics.RenderEffect.createBlurEffect(dp(4), dp(4), Shader.TileMode.CLAMP));
+    FrameLayout grid = new FrameLayout(this);
+    column.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+    column.setOnApplyWindowInsetsListener((v, insets) -> {
+      v.setPadding(0, dp(80) + insets.getSystemWindowInsetTop(), 0, 0); return insets;
+    });
+    column.requestApplyInsets();
+    int[][] tiles = {{0,0,152,152},{168,0,152,152},{0,168,68,68},
+        {84,168,68,68},{0,252,152,68},{168,168,68,152},{252,168,68,152},
+        {0,336,152,152},{168,336,68,68},{252,336,68,68},{168,420,68,68}};
+    for (int i = 0; i < tiles.length; i++) {
+      int[] tile = tiles[i];
+      GlassView panel = new GlassView(this);
+      panel.style.radius = 34;
+      panel.style.saturation = 1.5f;
+      panel.style.blur = 0;
+      panel.style.refractionHeight = 24;
+      panel.style.refractionAmount = 48;
+      panel.style.shadow = 0;
+      panel.style.highlight = .5f;
+      panel.style.highlightFalloff = 2;
+      panel.style.tint = i == 4 ? 0 : 0x0d000000;
+      FrameLayout.LayoutParams bounds = new FrameLayout.LayoutParams(dp(tile[2]), dp(tile[3]));
+      bounds.leftMargin = dp(tile[0]); bounds.topMargin = dp(tile[1]);
+      grid.addView(panel, bounds);
+      if (i == 0) {
+        for (int n = 0; n < 3; n++) {
+          ImageView icon = flightIcon();
+          android.graphics.drawable.GradientDrawable circle = new android.graphics.drawable.GradientDrawable();
+          circle.setColor(n == 0 ? 0x33ffffff : 0xff0088ff);
+          circle.setCornerRadius(dp(28));
+          icon.setBackground(circle);
+          icon.setPadding(dp(18.4f), dp(18.4f), dp(18.4f), dp(18.4f));
+          FrameLayout.LayoutParams inner = new FrameLayout.LayoutParams(dp(56), dp(56));
+          inner.leftMargin = dp(16 + (n == 1 ? 64 : 0));
+          inner.topMargin = dp(16 + (n == 2 ? 64 : 0));
+          panel.addView(icon, inner);
+        }
+      } else if (i == 2 || i == 3 || i >= 8) {
+        panel.addView(flightIcon(), new FrameLayout.LayoutParams(-1, -1));
+      }
+    }
+    column.addView(grid, new LinearLayout.LayoutParams(dp(320), dp(488)));
+    android.hardware.SensorManager sensors = (android.hardware.SensorManager) getSystemService(SENSOR_SERVICE);
+    android.hardware.Sensor accelerometer = sensors.getDefaultSensor(android.hardware.Sensor.TYPE_ACCELEROMETER);
+    android.hardware.SensorEventListener gravity = new android.hardware.SensorEventListener() {
+      private float angle = 45;
+      public void onAccuracyChanged(android.hardware.Sensor sensor, int accuracy) {}
+      public void onSensorChanged(android.hardware.SensorEvent event) {
+        angle = .5f * angle + .5f * (float) Math.toDegrees(Math.atan2(event.values[1], event.values[0]));
+        for (int i = 0; i < grid.getChildCount(); i++) {
+          GlassView tile = (GlassView) grid.getChildAt(i);
+          tile.style.highlightAngle = angle; tile.invalidate();
+        }
+      }
+    };
+    grid.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+      public void onViewAttachedToWindow(View v) { if (accelerometer != null) sensors.registerListener(gravity, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_UI); }
+      public void onViewDetachedFromWindow(View v) { sensors.unregisterListener(gravity); }
+    });
+    if (grid.isAttachedToWindow() && accelerometer != null) sensors.registerListener(gravity, accelerometer, android.hardware.SensorManager.SENSOR_DELAY_UI);
+    final float[] gesture = {0, 1, 1};
+    final android.animation.ValueAnimator[] settling = {null};
+    java.util.function.Consumer<Float> update = value -> {
+      float progress = Math.max(0, Math.min(1, value));
+      gesture[1] = value;
+      grid.setAlpha(progress);
+      grid.setTranslationY(-dp(48) * (1 - value));
+      grid.setScaleX(1 / (1 + .1f * Math.max(0, value - 1)));
+      grid.setScaleY(1 + .1f * Math.max(0, value - 1));
+      dim.setAlpha(progress);
+      for (int i = 0; i < grid.getChildCount(); i++) {
+        GlassView tile = (GlassView) grid.getChildAt(i);
+        tile.style.refractionHeight = 24 * progress;
+        tile.style.refractionAmount = 48 * progress;
+        tile.invalidate();
+      }
+      if (android.os.Build.VERSION.SDK_INT >= 31) root.content().setRenderEffect(progress > 0
+          ? android.graphics.RenderEffect.createBlurEffect(dp(4) * progress, dp(4) * progress, Shader.TileMode.CLAMP) : null);
+    };
+    root.foreground().setOnTouchListener((v, event) -> {
+      if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+        if (settling[0] != null) settling[0].cancel();
+        gesture[0] = event.getRawY(); gesture[2] = gesture[1];
+        return true;
+      }
+      if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+        update.accept(gesture[2] + (event.getRawY() - gesture[0]) / 1000f);
+        return true;
+      }
+      if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+        float delta = event.getRawY() - gesture[0];
+        float target = Math.abs(delta) > dp(8) ? (delta > 0 ? 1 : 0) : (gesture[1] >= .5f ? 1 : 0);
+        settling[0] = android.animation.ValueAnimator.ofFloat(gesture[1], target);
+        settling[0].setDuration(400);
+        settling[0].setInterpolator(new android.view.animation.OvershootInterpolator(target == 1 ? .5f : 0));
+        settling[0].addUpdateListener(animation -> update.accept((Float) animation.getAnimatedValue()));
+        settling[0].start();
+        return true;
+      }
+      return true;
+    });
+  }
+
+  private ImageView flightIcon() {
+    ImageView icon = new ImageView(this);
+    icon.setImageResource(R.drawable.ic_flight);
+    icon.setScaleType(ImageView.ScaleType.CENTER);
+    return icon;
   }
 
   private void magnifier() {
-    title("Drag the lens across the artwork");
-    FrameLayout area = new FrameLayout(this);
+    boolean dark = (getResources().getConfiguration().uiMode & 48) == 32;
+    BackdropLayout textSource = new BackdropLayout(this);
+    TextView body = text(LOREM, 16);
+    body.setTextColor(dark ? Color.WHITE : Color.BLACK);
+    body.setPadding(dp(24), dp(24), dp(24), dp(24));
+    android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+    shape.setColor(dark ? 0xe6121212 : 0xe6ffffff);
+    shape.setCornerRadius(dp(32));
+    body.setBackground(shape);
+    textSource.content().addView(body, new FrameLayout.LayoutParams(-1, -1));
+    View cursor = new View(this);
+    cursor.setBackgroundColor(0xff0088ff);
+    textSource.content().addView(cursor, new FrameLayout.LayoutParams(dp(4), dp(24), Gravity.CENTER));
     GlassView lens = new GlassView(this);
-    lens.style.zoom = 1.8f;
+    lens.style.zoom = 1.5f;
+    lens.style.sampleOffsetY = 80;
+    lens.style.shadow = 0;
     lens.style.blur = 0;
-    lens.style.radius = 90;
-    TextView t = text("⊕", 40);
-    t.setGravity(Gravity.CENTER);
-    lens.addView(t, new FrameLayout.LayoutParams(-1, -1));
-    area.addView(lens, new FrameLayout.LayoutParams(dp(150), dp(150)));
+    lens.style.radius = 48;
+    lens.style.refractionHeight = 8;
+    lens.style.refractionAmount = 24;
+    lens.style.innerShadow = 16;
+    lens.style.tint = 0;
+    FrameLayout.LayoutParams pos = new FrameLayout.LayoutParams(dp(128), dp(96), Gravity.CENTER);
+    textSource.foreground().addView(lens, pos);
+    lens.setTranslationY(-dp(80));
     final float[] down = new float[4];
-    lens.setOnTouchListener(
-        (v, e) -> {
-          switch (e.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-              down[0] = e.getRawX();
-              down[1] = e.getRawY();
-              down[2] = v.getTranslationX();
-              down[3] = v.getTranslationY();
-              v.getParent().requestDisallowInterceptTouchEvent(true);
-              return true;
-            case MotionEvent.ACTION_MOVE:
-              v.setTranslationX(
-                  Math.max(
-                      0,
-                      Math.min(area.getWidth() - v.getWidth(), down[2] + e.getRawX() - down[0])));
-              v.setTranslationY(
-                  Math.max(
-                      0,
-                      Math.min(area.getHeight() - v.getHeight(), down[3] + e.getRawY() - down[1])));
-              v.invalidate();
-              return true;
-            case MotionEvent.ACTION_UP:
-              v.performClick();
-            case MotionEvent.ACTION_CANCEL:
-              v.getParent().requestDisallowInterceptTouchEvent(false);
-              return true;
-          }
-          return true;
-        });
-    add(area, 420);
+    android.view.View.OnTouchListener drag = (v, e) -> {
+      if (e.getActionMasked() == MotionEvent.ACTION_DOWN) {
+        down[0] = e.getRawX(); down[1] = e.getRawY();
+        down[2] = cursor.getTranslationX(); down[3] = cursor.getTranslationY();
+        v.getParent().requestDisallowInterceptTouchEvent(true);
+      } else if (e.getActionMasked() == MotionEvent.ACTION_MOVE) {
+        float x = down[2] + e.getRawX() - down[0];
+        float y = down[3] + e.getRawY() - down[1];
+        cursor.setTranslationX(x); cursor.setTranslationY(y);
+        lens.setTranslationX(x); lens.setTranslationY(y - dp(80));
+        lens.invalidate();
+      } else {
+        v.getParent().requestDisallowInterceptTouchEvent(false);
+        if (e.getActionMasked() == MotionEvent.ACTION_UP) v.performClick();
+      }
+      return true;
+    };
+    cursor.setOnTouchListener(drag);
+    lens.setOnTouchListener(drag);
+    body.measure(View.MeasureSpec.makeMeasureSpec(getResources().getDisplayMetrics().widthPixels - dp(48), View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+    LinearLayout.LayoutParams textBounds = new LinearLayout.LayoutParams(-1, body.getMeasuredHeight());
+    textBounds.setMargins(dp(24), 0, dp(24), 0);
+    column.addView(textSource, textBounds);
   }
 
   private void playground() {
-    LiquidButton sample = button("LIVE GLASS", () -> {});
+    root.foreground().removeAllViews();
+    GlassView sample = new GlassView(this);
+    sample.style.radius = 64;
+    sample.style.saturation = 1.5f;
+    sample.style.plainHighlight = true; sample.style.highlight = .38f;
+    sample.style.blur = 0;
+    sample.style.refractionHeight = 25.6f;
+    sample.style.refractionAmount = 51.2f;
+    sample.style.chromaticAberration = false;
+    sample.style.tint = 0;
+    sample.style.shadow = 0;
     GlassGestureController.attach(sample);
-    add(sample, 140);
-    parameter("Blur", sample.style.blur, 40, n -> sample.style.blur = n, sample);
-    parameter("Corner radius", sample.style.radius, 80, n -> sample.style.radius = n, sample);
-    parameter(
-        "Refraction height",
-        sample.style.refractionHeight,
-        60,
-        n -> sample.style.refractionHeight = n,
-        sample);
-    parameter(
-        "Refraction amount",
-        sample.style.refractionAmount,
-        80,
-        n -> sample.style.refractionAmount = n,
-        sample);
-    parameter("Saturation", sample.style.saturation, 2, n -> sample.style.saturation = n, sample);
-    parameter("Highlight", sample.style.highlight, 1, n -> sample.style.highlight = n, sample);
-    parameter("Zoom", 1, 3, n -> sample.style.zoom = Math.max(.1f, n), sample);
-    for (String name : new String[] {"Depth effect", "Chromatic aberration"}) {
-      title(name);
-      LiquidToggle toggle = new LiquidToggle(this);
-      toggle.setChecked(true);
-      toggle.setOnCheckedChangeListener(
-          (v, on) -> {
-            if (name.startsWith("Depth")) sample.style.depthEffect = on;
-            else sample.style.chromaticAberration = on;
-            sample.invalidate();
-          });
-      add(toggle, 48);
+    FrameLayout.LayoutParams sampleBounds = new FrameLayout.LayoutParams(dp(256), dp(256), Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+    sampleBounds.topMargin = dp(48);
+    sample.setOnApplyWindowInsetsListener((v, insets) -> {
+      FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) v.getLayoutParams();
+      p.topMargin = dp(48) + insets.getSystemWindowInsetTop(); v.setLayoutParams(p); return insets;
+    });
+    root.foreground().addView(sample, sampleBounds);
+    GlassView sheet = new GlassView(this);
+    sheet.style.plainHighlight = true; sheet.style.highlight = .38f;
+    sheet.style.saturation = 1.5f;
+    sheet.style.radius = 32; sheet.style.blur = 4;
+    sheet.style.refractionHeight = 16; sheet.style.refractionAmount = 32;
+    sheet.style.tint = 0x80ffffff; sheet.style.shadow = 0;
+    LinearLayout settings = new LinearLayout(this);
+    settings.setOrientation(LinearLayout.VERTICAL);
+    settings.setPadding(dp(24), dp(24), dp(24), dp(24));
+    String[] names = {"Corner radius", "Blur radius", "Refraction height", "Refraction amount", "Chromatic aberration"};
+    float[] defaults = {.5f, 0, .2f, .2f, 0};
+    LiquidSlider[] sliders = new LiquidSlider[5];
+    for (int i = 0; i < names.length; i++) {
+      final int setting = i;
+      TextView label = text(names[i], 14); label.setTextColor(Color.BLACK); label.setIncludeFontPadding(false);
+      label.setPadding(0, 0, 0, dp(8));
+      settings.addView(label);
+      LiquidSlider slider = new LiquidSlider(this); sliders[i] = slider;
+      slider.setValue(defaults[i]);
+      slider.setOnValueChangeListener(value -> {
+        switch (setting) {
+          case 0: sample.style.radius = 128 * value; break;
+          case 1: sample.style.blur = 32 * value; break;
+          case 2: sample.style.refractionHeight = 128 * value; break;
+          case 3: sample.style.refractionAmount = 256 * value; break;
+          case 4: sample.style.chromaticAberration = value > 0; break;
+        }
+        sample.invalidate();
+      });
+      LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams(-1, dp(24));
+      bounds.bottomMargin = i < 4 ? dp(16) : 0;
+      settings.addView(slider, bounds);
+    }
+    sheet.addView(settings);
+    FrameLayout.LayoutParams sheetBounds = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
+    sheetBounds.setMargins(dp(16), 0, dp(16), dp(88));
+    sheet.setOnApplyWindowInsetsListener((v, insets) -> {
+      FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) v.getLayoutParams();
+      p.bottomMargin = dp(88) + insets.getSystemWindowInsetBottom(); v.setLayoutParams(p); return insets;
+    });
+    root.foreground().addView(sheet, sheetBounds);
+    LiquidButton expand = button("▼", () -> sheet.setVisibility(sheet.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE));
+    LiquidButton reset = button("Reset", () -> {
+      sample.animate().translationX(0).translationY(0).scaleX(1).scaleY(1).rotation(0).setDuration(300).start();
+      for (int i = 0; i < sliders.length; i++) sliders[i].setValue(defaults[i]);
+    });
+    for (LiquidButton action : new LiquidButton[] {expand, reset}) {
+      action.style.tint = 0xbfff8d28; action.style.hueTint = true; action.style.shadow = 0;
+      action.setTextSize(15);
+      FrameLayout.LayoutParams bounds = new FrameLayout.LayoutParams(dp(action == reset ? 68 : 48), dp(48), Gravity.BOTTOM | (action == reset ? Gravity.RIGHT : Gravity.LEFT));
+      bounds.setMargins(dp(20), 0, dp(20), dp(20));
+      action.setOnApplyWindowInsetsListener((v, insets) -> {
+        FrameLayout.LayoutParams p = (FrameLayout.LayoutParams) v.getLayoutParams();
+        p.bottomMargin = dp(20) + insets.getSystemWindowInsetBottom(); v.setLayoutParams(p); return insets;
+      });
+      root.foreground().addView(action, bounds);
     }
   }
 
@@ -446,83 +707,90 @@ public class MainActivity extends Activity {
   }
 
   private void adaptive() {
-    title("Adaptive glass adjusts its shading from sampled background luminance");
-    LiquidButton b = button("Adaptive luminance", () -> {});
-    b.style.adaptiveLuminance = true;
-    GlassGestureController.attach(b);
-    add(b, 180);
-    LiquidSlider s = new LiquidSlider(this);
-    s.setOnValueChangeListener(
-        n -> {
-          b.setTranslationY(dp(n * 160));
-          b.invalidate();
-        });
-    add(s, 48);
-    title("Move the panel over the background");
+    LiquidButton sample = new LiquidButton(this) {
+      @Override protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        setText(String.format(java.util.Locale.ROOT, "luminance:\n%.2f", getSampledLuminance()));
+      }
+    };
+    sample.setTextSize(16);
+    sample.style.adaptiveLuminance = true;
+    sample.style.plainHighlight = true; sample.style.highlight = .38f;
+    sample.style.shadow = 0;
+    sample.style.radius = 24;
+    sample.style.refractionHeight = 24;
+    sample.style.refractionAmount = 80;
+    sample.style.saturation = 1.5f;
+    sample.style.tint = 0;
+    GlassGestureController.attach(sample);
+    column.addView(sample, new LinearLayout.LayoutParams(dp(160), dp(160)));
   }
 
   private void progressive() {
-    title("Original alpha-masked progressive blur");
-    LiquidButton original = button("Alpha-masked progressive blur", () -> {});
+    LiquidButton original = button("alpha-masked progressive blur", () -> {});
     original.style.radius = 0;
     original.style.blur = 4;
     original.style.refractionAmount = 0;
     original.style.alphaMaskedBlur = true;
     original.style.highlight = 0;
+    original.style.shadow = 0;
     original.style.tint = 0;
-    add(original, 128);
-    title("Additional variable-radius blur");
-    LiquidButton b = button("Variable-radius blur", () -> {});
-    b.style.blur = 0;
-    b.style.progressiveBlur = 24;
-    add(b, 200);
-    parameter("Progressive blur", 24, 48, n -> b.style.progressiveBlur = n, b);
+    original.setTextColor((getResources().getConfiguration().uiMode & 48) == 32 ? Color.WHITE : Color.BLACK);
+    column.setPadding(0, 0, 0, 0);
+    column.addView(original, new LinearLayout.LayoutParams(-1, dp(128)));
+  }
+
+  private GlassView scrollTile() {
+    GlassView tile = new GlassView(this);
+    tile.style.radius = 32;
+    tile.style.saturation = 1.5f;
+    tile.style.blur = 0;
+    tile.style.refractionHeight = 16;
+    tile.style.refractionAmount = 32;
+    tile.style.tint = 0;
+    return tile;
   }
 
   private void scrolling(boolean lazy) {
-    // Scroll the sampled source itself, while the foreground glass remains fixed.
-    root.content().removeAllViews();
+    root.foreground().removeAllViews();
     if (lazy) {
       ListView list = new ListView(this);
-      String[] rows = new String[200];
-      for (int i = 0; i < rows.length; i++) rows[i] = "Recycled background item " + (i + 1);
-      list.setAdapter(
-          new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, rows) {
-            @Override
-            public View getView(int p, View v, ViewGroup parent) {
-              TextView t = (TextView) super.getView(p, v, parent);
-              t.setTextColor(-1);
-              t.setHeight(dp(80));
-              t.setBackgroundColor(Color.HSVToColor(new float[] {p * 23 % 360, .55f, .65f}));
-              return t;
-            }
-          });
-      root.content().addView(list);
+      list.setDivider(null);
+      list.setPadding(dp(16), dp(16), dp(16), dp(16));
+      list.setClipToPadding(false);
+      list.setClipChildren(false);
+      list.setAdapter(new BaseAdapter() {
+        public int getCount() { return 20; }
+        public Object getItem(int position) { return position; }
+        public long getItemId(int position) { return position; }
+        public View getView(int position, View recycled, ViewGroup parent) {
+          if (recycled != null) return recycled;
+          FrameLayout row = new FrameLayout(MainActivity.this);
+          // A row is a layout boundary, not a shadow clipping boundary.
+          row.setClipChildren(false);
+          row.setClipToPadding(false);
+          row.setLayoutParams(new AbsListView.LayoutParams(-1, dp(176)));
+          row.addView(scrollTile(), new FrameLayout.LayoutParams(-1, dp(160)));
+          return row;
+        }
+      });
+      root.foreground().addView(list);
     } else {
-      ScrollView source = new ScrollView(this);
-      LinearLayout rows = new LinearLayout(this);
-      rows.setOrientation(LinearLayout.VERTICAL);
-      for (int i = 0; i < 40; i++) {
-        TextView t = text("Background chapter " + (i + 1) + "\nScroll behind the glass", 24);
-        t.setHeight(dp(160));
-        t.setBackgroundColor(Color.HSVToColor(new float[] {i * 37 % 360, .5f, .65f}));
-        rows.addView(t);
+      ScrollView scroll = new ScrollView(this);
+      scroll.setClipChildren(false);
+      scroll.setClipToPadding(false);
+      LinearLayout items = new LinearLayout(this);
+      items.setOrientation(LinearLayout.VERTICAL);
+      items.setClipChildren(false);
+      items.setClipToPadding(false);
+      items.setPadding(dp(16), dp(16), dp(16), 0);
+      for (int i = 0; i < 20; i++) {
+        LinearLayout.LayoutParams bounds = new LinearLayout.LayoutParams(-1, dp(160));
+        bounds.bottomMargin = dp(16);
+        items.addView(scrollTile(), bounds);
       }
-      source.addView(rows);
-      root.content().addView(source);
+      scroll.addView(items);
+      root.foreground().addView(scroll);
     }
-    // Keep only a compact header in the foreground so touches reach the source below it.
-    root.foreground().removeAllViews();
-    GlassView panel = new GlassView(this);
-    LinearLayout header = new LinearLayout(this);
-    header.setOrientation(LinearLayout.VERTICAL);
-    header.setPadding(dp(20), dp(8), dp(20), dp(8));
-    LiquidButton back = button("‹ Catalog", () -> show(-1));
-    header.addView(back, new LinearLayout.LayoutParams(-1, dp(44)));
-    header.addView(text(lazy ? "Recycled list backdrop" : "Scrolling backdrop", 22));
-    panel.addView(header);
-    FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(-1, dp(150), Gravity.TOP);
-    p.setMargins(dp(16), dp(16), dp(16), 0);
-    root.foreground().addView(panel, p);
   }
 }

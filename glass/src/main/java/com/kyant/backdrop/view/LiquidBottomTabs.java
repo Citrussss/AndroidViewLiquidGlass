@@ -9,6 +9,7 @@ public class LiquidBottomTabs extends GlassView {
   private final LinearLayout row;
   private final GlassView selector;
   private int selected;
+  private int contentColor = android.graphics.Color.BLACK;
 
   public interface OnTabSelectedListener {
     void onTabSelected(int index);
@@ -18,6 +19,8 @@ public class LiquidBottomTabs extends GlassView {
 
   public LiquidBottomTabs(Context c) {
     super(c);
+    style.blur = 2; style.radius = 100; style.shadow = 0;
+    style.refractionHeight = 12; style.refractionAmount = 24; style.tint = 0x66fafafa;
     selector = new GlassView(c);
     selector.style.radius = 100;
     selector.style.blur = 0;
@@ -52,6 +55,22 @@ public class LiquidBottomTabs extends GlassView {
     setSelectedTab(Math.min(selected, names.length - 1));
   }
 
+  public void setTabIcon(int drawable, int color) {
+    contentColor = color;
+    for (int i = 0; i < row.getChildCount(); i++) {
+      TextView label = (TextView) row.getChildAt(i);
+      android.graphics.drawable.Drawable icon = getContext().getDrawable(drawable).mutate();
+      icon.setTint(color);
+      icon.setBounds(0, 0, (int) dp(28), (int) dp(28));
+      label.setCompoundDrawables(null, icon, null, null);
+      label.setTextSize(12);
+      label.setTextColor(i == selected ? 0xff0088ff : color);
+      icon.setTint(i == selected ? 0xff0088ff : color);
+      label.setPadding(0, (int) dp(6), 0, (int) dp(6));
+      label.setIncludeFontPadding(false);
+    }
+  }
+
   public int getSelectedTab() {
     return selected;
   }
@@ -62,6 +81,10 @@ public class LiquidBottomTabs extends GlassView {
     for (int i = 0; i < row.getChildCount(); i++) {
       android.view.View t = row.getChildAt(i);
       t.setSelected(i == index);
+      TextView label = (TextView) t;
+      int color = i == index ? 0xff0088ff : contentColor;
+      label.setTextColor(color);
+      for (android.graphics.drawable.Drawable icon : label.getCompoundDrawables()) if (icon != null) icon.setTint(color);
     }
     positionSelector(true);
     if (listener != null) listener.onTabSelected(index);
