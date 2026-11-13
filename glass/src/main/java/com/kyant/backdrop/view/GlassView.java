@@ -153,9 +153,13 @@ public class GlassView extends FrameLayout {
           && c.isHardwareAccelerated()
           && layer.exportedSurface.hasDisplayList()) c.drawRenderNode(layer.exportedSurface);
       else if (!c.isHardwareAccelerated()) layer.drawGlass(c);
+      layer.drawBackdropContent(c);
       c.restore();
     }
   }
+
+  /** Extra non-glass content exported only to dependent surfaces; must not draw those surfaces. */
+  protected void drawBackdropContent(Canvas canvas) {}
 
   /** Optional custom backdrop-only effect applied after the built-in effects; API 31+. */
   public void setBackdropEffect(RenderEffect effect) {

@@ -19,20 +19,29 @@ public class LiquidBottomTabs extends GlassView {
 
   public LiquidBottomTabs(Context c) {
     super(c);
-    style.blur = 2; style.radius = 100; style.shadow = 0;
-    style.refractionHeight = 12; style.refractionAmount = 24; style.tint = 0x66fafafa;
+    style.blur = 8; style.saturation = 1.5f; style.radius = 100; style.shadow = 0;
+    style.refractionHeight = 24; style.refractionAmount = 24; style.tint = 0x66fafafa;
+    style.depthEffect = false; style.chromaticAberration = false;
     selector = new GlassView(c);
+    selector.style.depthEffect = false;
     selector.style.radius = 100;
     selector.style.blur = 0;
-    selector.style.refractionHeight = 12;
-    selector.style.refractionAmount = 16;
-    selector.style.tint = 0x44ffffff;
+    selector.style.refractionHeight = 0;
+    selector.style.refractionAmount = 0;
+    selector.style.tint = 0x1a000000;
+    selector.style.highlight = 0;
     selector.style.shadow = 0;
     selector.setBackdropLayers(this);
     selector.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
     addView(selector);
     row = new LinearLayout(c);
-    addView(row, new LayoutParams(-1, -1));
+    LayoutParams rowBounds = new LayoutParams(-1, -1);
+    rowBounds.setMargins((int) dp(4), (int) dp(4), (int) dp(4), (int) dp(4));
+    addView(row, rowBounds);
+    bringChildToFront(selector);
+    setClipToOutline(false);
+    setClipChildren(false);
+    setClipToPadding(false);
   }
 
   public void setOnTabSelectedListener(OnTabSelectedListener l) {
@@ -64,8 +73,8 @@ public class LiquidBottomTabs extends GlassView {
       icon.setBounds(0, 0, (int) dp(28), (int) dp(28));
       label.setCompoundDrawables(null, icon, null, null);
       label.setTextSize(12);
-      label.setTextColor(i == selected ? 0xff0088ff : color);
-      icon.setTint(i == selected ? 0xff0088ff : color);
+      label.setTextColor(color);
+      icon.setTint(color);
       label.setPadding(0, (int) dp(6), 0, (int) dp(6));
       label.setIncludeFontPadding(false);
     }
@@ -82,7 +91,7 @@ public class LiquidBottomTabs extends GlassView {
       android.view.View t = row.getChildAt(i);
       t.setSelected(i == index);
       TextView label = (TextView) t;
-      int color = i == index ? 0xff0088ff : contentColor;
+      int color = contentColor;
       label.setTextColor(color);
       for (android.graphics.drawable.Drawable icon : label.getCompoundDrawables()) if (icon != null) icon.setTint(color);
     }
@@ -96,7 +105,7 @@ public class LiquidBottomTabs extends GlassView {
         getLayoutDirection() == LAYOUT_DIRECTION_RTL
             ? row.getChildCount() - 1 - selected
             : selected;
-    float x = getWidth() / (float) row.getChildCount() * visual;
+    float x = dp(4) + (getWidth() - dp(8)) / row.getChildCount() * visual;
     if (animate)
       selector
           .animate()
@@ -109,19 +118,134 @@ public class LiquidBottomTabs extends GlassView {
   }
 
   @Override
+  protected void drawBackdropContent(android.graphics.Canvas canvas) {
+    // The source catalog exports a second, accent-colored content row for the lens.
+    android.graphics.Paint tint = new android.graphics.Paint();
+    tint.setColorFilter(new android.graphics.PorterDuffColorFilter(0xff0088ff, android.graphics.PorterDuff.Mode.SRC_IN));
+    int save = canvas.saveLayer(0, 0, getWidth(), getHeight(), tint);
+    canvas.translate(row.getLeft(), row.getTop());
+    for (int i = 0; i < row.getChildCount(); i++) {
+      android.view.View item = row.getChildAt(i);
+      int itemSave = canvas.save();
+      canvas.translate(item.getLeft(), item.getTop());
+      float scale = 1 + .2f * pressProgress;
+      canvas.scale(scale, scale, item.getWidth() / 2f, item.getHeight() / 2f);
+      item.draw(canvas);
+      canvas.restoreToCount(itemSave);
+    }
+    canvas.restoreToCount(save);
+  }
+
+  private float pressProgress;
+  private android.animation.ValueAnimator pressAnimator;
+  private void setLiquidPress(boolean pressed) {
+    if (pressAnimator != null) pressAnimator.cancel();
+    pressAnimator = android.animation.ValueAnimator.ofFloat(pressProgress, pressed ? 1 : 0);
+    pressAnimator.setDuration(500);
+    pressAnimator.setInterpolator(new SpringInterpolator(1, 1000, .5f));
+    pressAnimator.addUpdateListener(animation -> {
+      pressProgress = (float) animation.getAnimatedValue();
+      selector.style.refractionHeight = 10 * pressProgress;
+      selector.style.refractionAmount = 14 * pressProgress;
+      selector.style.highlight = .5f * pressProgress;
+      selector.style.shadow = 24 * pressProgress;
+      selector.style.innerShadow = 8 * pressProgress;
+      boolean dark = (getResources().getConfiguration().uiMode & 48) == 32;
+      int alpha = Math.round(255 * (.1f * (1 - pressProgress) + .03f * pressProgress));
+      selector.style.tint = android.graphics.Color.argb(alpha, dark ? 255 : 0, dark ? 255 : 0, dark ? 255 : 0);
+      selector.invalidate();
+    });
+    pressAnimator.start();
+    float scale = pressed ? 78f / 56f : 1;
+    selector.animate().scaleX(scale).scaleY(scale).setDuration(700)
+        .setInterpolator(new SpringInterpolator(.65f, 250, .7f)).start();
+    float panelScale = pressed ? 1 + dp(16) / Math.max(1, getWidth()) : 1;
+    animate().scaleX(panelScale).scaleY(panelScale).setDuration(500)
+        .setInterpolator(new SpringInterpolator(1, 1000, .5f)).start();
+  }
+
+  @Override protected void onDetachedFromWindow() {
+    if (pressAnimator != null) pressAnimator.cancel();
+    super.onDetachedFromWindow();
+  }
+
+  private float dragDownX, dragDownY, dragStartX;
+  private boolean dragging;
+
+  @Override
+  public boolean onInterceptTouchEvent(android.view.MotionEvent event) {
+    if (!isEnabled() || row.getChildCount() == 0) return false;
+    switch (event.getActionMasked()) {
+      case android.view.MotionEvent.ACTION_DOWN:
+        dragging = false;
+        dragDownX = event.getX(); dragDownY = event.getY();
+        selector.animate().cancel();
+        dragStartX = selector.getTranslationX();
+        setLiquidPress(true);
+        break;
+      case android.view.MotionEvent.ACTION_MOVE:
+        float dx = event.getX() - dragDownX, dy = event.getY() - dragDownY;
+        if (Math.abs(dx) > android.view.ViewConfiguration.get(getContext()).getScaledTouchSlop()
+            && Math.abs(dx) > Math.abs(dy)) {
+          dragging = true;
+          getParent().requestDisallowInterceptTouchEvent(true);
+          return true;
+        }
+        break;
+      case android.view.MotionEvent.ACTION_CANCEL:
+      case android.view.MotionEvent.ACTION_UP:
+        dragging = false;
+        setLiquidPress(false);
+        break;
+    }
+    return dragging;
+  }
+
+  @Override
+  public boolean onTouchEvent(android.view.MotionEvent event) {
+    if (!isEnabled() || row.getChildCount() == 0) return false;
+    float tabWidth = (getWidth() - dp(8)) / row.getChildCount();
+    switch (event.getActionMasked()) {
+      case android.view.MotionEvent.ACTION_MOVE:
+        if (!dragging) return super.onTouchEvent(event);
+        float x = Math.max(dp(4), Math.min(getWidth() - dp(4) - tabWidth, dragStartX + event.getX() - dragDownX));
+        selector.setTranslationX(x);
+        selector.invalidate();
+        return true;
+      case android.view.MotionEvent.ACTION_UP:
+        if (!dragging) return super.onTouchEvent(event);
+        int visual = Math.round((selector.getTranslationX() - dp(4)) / Math.max(1, tabWidth));
+        int index = getLayoutDirection() == LAYOUT_DIRECTION_RTL ? row.getChildCount() - 1 - visual : visual;
+        dragging = false;
+        setLiquidPress(false);
+        getParent().requestDisallowInterceptTouchEvent(false);
+        setSelectedTab(index);
+        return true;
+      case android.view.MotionEvent.ACTION_CANCEL:
+        if (!dragging) return super.onTouchEvent(event);
+        dragging = false;
+        setLiquidPress(false);
+        getParent().requestDisallowInterceptTouchEvent(false);
+        positionSelector(true);
+        return true;
+    }
+    return dragging || super.onTouchEvent(event);
+  }
+
+  @Override
   protected void onMeasure(int w, int h) {
     super.onMeasure(w, h);
-    int width = getMeasuredWidth() / Math.max(1, row.getChildCount());
+    int width = Math.max(0, getMeasuredWidth() - (int) dp(8)) / Math.max(1, row.getChildCount());
     selector.measure(
         MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
-        MeasureSpec.makeMeasureSpec(getMeasuredHeight(), MeasureSpec.EXACTLY));
+        MeasureSpec.makeMeasureSpec(Math.max(0, getMeasuredHeight() - (int) dp(8)), MeasureSpec.EXACTLY));
   }
 
   @Override
   protected void onLayout(boolean changed, int l, int t, int r, int b) {
     super.onLayout(changed, l, t, r, b);
-    selector.layout(0, 0, selector.getMeasuredWidth(), getHeight());
-    positionSelector(false);
+    selector.layout(0, (int) dp(4), selector.getMeasuredWidth(), getHeight() - (int) dp(4));
+    if (!dragging) positionSelector(false);
   }
 
   @Override

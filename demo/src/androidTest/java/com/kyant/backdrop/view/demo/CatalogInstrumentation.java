@@ -151,6 +151,21 @@ public class CatalogInstrumentation extends Instrumentation {
       LiquidBottomTabs t = (LiquidBottomTabs) v;
       t.setSelectedTab(2);
       if (t.getSelectedTab() != 2) throw new AssertionError("Tab selection");
+      t.setSelectedTab(0);
+      // Exercise real dispatch through the clickable label children, not the selection setter.
+      t.jumpDrawablesToCurrentState();
+      int width = t.getWidth();
+      long now = SystemClock.uptimeMillis();
+      float x = width / 6f, y = t.getHeight() / 2f;
+      MotionEvent down = MotionEvent.obtain(now, now, MotionEvent.ACTION_DOWN, x, y, 0);
+      t.dispatchTouchEvent(down); down.recycle();
+      for (int step = 1; step <= 5; step++) {
+        MotionEvent move = MotionEvent.obtain(now, now + step * 16, MotionEvent.ACTION_MOVE, x + width * .65f * step / 5, y, 0);
+        t.dispatchTouchEvent(move); move.recycle();
+      }
+      MotionEvent up = MotionEvent.obtain(now, now + 100, MotionEvent.ACTION_UP, width * .82f, y, 0);
+      t.dispatchTouchEvent(up); up.recycle();
+      if (t.getSelectedTab() == 0) throw new AssertionError("Horizontal tab drag did not select another tab");
     }
     if (v instanceof ViewGroup) {
       ViewGroup g = (ViewGroup) v;

@@ -6,13 +6,21 @@ AndroidLiquidGlass / Backdrop 的 Android View 实现。Java 17，`Canvas`、`Re
 
 ## 演示效果
 
-Samsung SM-S9010 / Android 16 真机录制：拖动放大镜和 SDF 玻璃时钟，实时采样背景。
+Samsung SM-S9010 / Android 16 真机实拍：滚动玻璃卡片实时采样壁纸，外扩阴影自然显示。录屏仅包含 Demo 内部画面。
 
-![真机交互演示](docs/images/demo.gif)
+![Scroll Container 真机滚动演示](docs/images/demo.gif)
+
+[查看 MP4 录屏](docs/images/scroll-container.mp4)
 
 <p>
-  <img src="docs/images/catalog.png" alt="原生 View Demo 目录" width="280" />
-  <img src="docs/images/sdf-clock.png" alt="SDF 玻璃时钟" width="280" />
+  <img src="docs/images/catalog.png" alt="新版演示目录" width="240" />
+  <img src="docs/images/buttons.png" alt="四种液态玻璃按钮" width="240" />
+  <img src="docs/images/control-center.png" alt="液态玻璃控制中心" width="240" />
+</p>
+<p>
+  <img src="docs/images/sdf-clock.png" alt="SDF 玻璃时钟" width="240" />
+  <img src="docs/images/playground.png" alt="玻璃参数调试面板" width="240" />
+  <img src="docs/images/scroll-container.png" alt="修复外扩阴影裁剪后的滚动容器" width="240" />
 </p>
 
 [下载 Demo APK 和 Library AAR](https://github.com/Citrussss/AndroidViewLiquidGlass/releases/latest) · [验证记录](VALIDATION.md)
